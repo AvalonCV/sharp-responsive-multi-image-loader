@@ -45,6 +45,7 @@ export default async (test_file: string, options: LoaderOptions = {}): Promise<T
 					files: outputFileSystem
 						.readdirSync(path.resolve(__dirname))
 						.filter(filename => filename !== 'bundle.js')
+						.sort()
 				});
 			}
 		});

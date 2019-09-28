@@ -32,7 +32,14 @@ const imageToString = function(image: ImageData): string {
 		height:  ${JSON.stringify(image.height)},
 		type:  ${JSON.stringify(image.type)},
 		${image.placeholder ? `placeholder: ${JSON.stringify(image.placeholder)},` : ''}
-		${image.responsive_images ? `responsive_images: ${JSON.stringify(image.responsive_images)},` : ''}
+		${
+			image.responsive_images
+				? `responsive_images: ${JSON.stringify(image.responsive_images).replace(
+						/"src"\:/g,
+						'"src": __webpack_public_path__ + '
+				  )},`
+				: ''
+		}
 		};
 		module.exports.toString = function() {
 			return ${image_src};
@@ -66,7 +73,8 @@ const format_options: { [format: string]: {} } = {
 const file_extensions: { [format: string]: string } = {
 	jpeg: 'jpg',
 	png: 'png',
-	webp: 'webp'
+	webp: 'webp',
+	'svg+xml': 'svg'
 };
 
 const loader: loader.Loader = function(content): void {
@@ -77,10 +85,12 @@ const loader: loader.Loader = function(content): void {
 
 	const {
 		name_prefix = '[name]',
-		target_formats = ['jpeg', 'webp'],
+		target_formats = ['webp', 'jpeg'],
 		widths = [1280, 640],
 		emitFile = true
 	} = options;
+
+	const default_format = target_formats.indexOf('jpeg') > -1 ? 'jpeg' : target_formats[0];
 
 	const getImageSource = (filename_suffix: string = '[ext]', buffer?: Buffer) => {
 		return interpolateName(this, name_prefix + '.' + filename_suffix, {
@@ -107,15 +117,12 @@ const loader: loader.Loader = function(content): void {
 					const src = getImageSource();
 					emitFile && this.emitFile(src, content, null);
 					// no resizing required - we are done
-					callback &&
-						callback(
-							null,
-							imageToString({ ...source_dimensions, src, type: metadata.format || 'undefined' })
-						);
+					callback && callback(null, imageToString({ ...source_dimensions, src, type: 'image/svg+xml' }));
 				} else {
 					// should come from options
-					const target_widths = widths.filter(width => width < source_dimensions.width);
+					let target_widths = widths.filter(width => width < source_dimensions.width);
 					target_widths.push(source_dimensions.width);
+					target_widths = target_widths.sort((a, b) => a - b);
 
 					const promises: Promise<ResponsiveImageTarget>[] = [];
 					target_formats.forEach(format => {
@@ -131,7 +138,7 @@ const loader: loader.Loader = function(content): void {
 											width,
 											format,
 											src: getImageSource(`${width}.${file_extensions[format]}`, buffer),
-											is_default: format === 'jpeg' && width === source_dimensions.width
+											is_default: format === default_format && width === source_dimensions.width
 										};
 									})
 							);
@@ -148,7 +155,7 @@ const loader: loader.Loader = function(content): void {
 								return {
 									buffer,
 									width: 20,
-									format: 'png',
+									format: 'image/png',
 									src: getImageSource(`placeholder.png`, buffer),
 									is_placeholder: true
 								};
@@ -174,7 +181,7 @@ const loader: loader.Loader = function(content): void {
 								imageToString({
 									...source_dimensions,
 									src: default_image_source,
-									type: 'jpeg',
+									type: `image/${default_format}`,
 									placeholder: placeholder_data_uri,
 									responsive_images: image_targets
 										.filter(target => !target.is_placeholder)
@@ -182,7 +189,7 @@ const loader: loader.Loader = function(content): void {
 											return {
 												width: target.width,
 												src: target.src,
-												type: `ìmage/${target.format}`
+												type: `image/${target.format}`
 											};
 										})
 								})

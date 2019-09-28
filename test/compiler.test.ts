@@ -24,7 +24,7 @@ export const getWebpackTestData = async (filename: string, options: LoaderOption
 		let output = modules && modules[0] ? modules[0].source : null;
 		if (output) {
 			resolve({
-				image: requireFromString(output.replace('__webpack_public_path__', `''`)) as ImageData,
+				image: requireFromString(output.replace(/__webpack_public_path__/g, `''`)) as ImageData,
 				files: result.files
 			});
 		} else {
@@ -59,17 +59,17 @@ export const test_images: TestImage[] = [
 			src: 'Bristol-WML-2.84.1442.jpg',
 			width: 1442,
 			height: 518,
-			type: 'jpeg',
+			type: 'image/jpeg',
 			placeholder:
 				'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAHCAIAAACHqfpvAAAACXBIWXMAAAPoAAAD6AG1e1JrAAABtklEQVQY0wGrAVT+ACYgHSohJFpOSnNjVGBPQ5aHdc3HutjWzcK6paugkK+lkszGttnVzc7FtJiDbrOZhbSbh6yTgcKpj7SYeABFPjU9Oz1JR0tJQUdMPD16Y1qYgnOii3jAtabX1dTTzsi9s6WikYWPclmGZlCjh25vVUqSfHOjhWOskWAANzcrQT01ST8/Ozc7TDw6YEE5Z1RSWz8za1haqKOqlIuQZldXZ1NFa1M7ako2cllJalM/emBJWkUza1tGADwsH2dMOmNGQFlALT0vJ04zJ11JP1NCPlZCQHRuem1jaU46NFA9N1k/LV49LnNdRWFPN1pne4RwXZJtSABGKhhdPShkRTFdPCI8KiJBMCpHNjJOOi9QOi5tbHlqZGZPMB1LNS1DMjFFMy1ZQCpZQi9LQUJoU0ZySywASyoXPCoiPikiNR8VNCUfPTIvTDguQSIQUj84VlZaYV5fUTcrOBwPUTsvUEA8WD4yUjEcOiQZOSkkWjsnADcgFTMgGisUDTMkHzUvLkMzKVQyHFw2GVtMSVBVUFdcV2ZRR04oDFkxGEQzKU8/PEs7Ny8eGTceES8dGk0djh9f6MtPAAAAAElFTkSuQmCC'
 		},
 		expected_files: [
 			'Bristol-WML-2.84.1280.jpg',
-			'Bristol-WML-2.84.640.jpg',
-			'Bristol-WML-2.84.1442.jpg',
 			'Bristol-WML-2.84.1280.webp',
-			'Bristol-WML-2.84.640.webp',
-			'Bristol-WML-2.84.1442.webp'
+			'Bristol-WML-2.84.1442.jpg',
+			'Bristol-WML-2.84.1442.webp',
+			'Bristol-WML-2.84.640.jpg',
+			'Bristol-WML-2.84.640.webp'
 		]
 	},
 	{
@@ -78,12 +78,12 @@ export const test_images: TestImage[] = [
 			src: 'PNG_transparency_demonstration_2.800.jpg',
 			width: 800,
 			height: 600,
-			type: 'jpeg'
+			type: 'image/jpeg'
 		},
 		expected_files: [
 			'PNG_transparency_demonstration_2.640.jpg',
-			'PNG_transparency_demonstration_2.800.jpg',
 			'PNG_transparency_demonstration_2.640.webp',
+			'PNG_transparency_demonstration_2.800.jpg',
 			'PNG_transparency_demonstration_2.800.webp'
 		]
 	},
@@ -93,9 +93,9 @@ export const test_images: TestImage[] = [
 			src: 'test3.1280.jpg',
 			width: 1280,
 			height: 720,
-			type: 'jpeg'
+			type: 'image/jpeg'
 		},
-		expected_files: ['test3.640.jpg', 'test3.1280.jpg', 'test3.640.webp', 'test3.1280.webp']
+		expected_files: ['test3.1280.jpg', 'test3.1280.webp', 'test3.640.jpg', 'test3.640.webp']
 	},
 	{
 		input_file: 'Rotating_earth_(large).gif',
@@ -103,16 +103,16 @@ export const test_images: TestImage[] = [
 			src: 'Rotating_earth_(large).400.jpg',
 			width: 400,
 			height: 400,
-			type: 'jpeg',
+			type: 'image/jpeg',
 			responsive_images: [
 				{
-					src: 'Rotating_earth_(large).400.jpg',
-					type: 'ìmage/jpeg',
+					src: 'Rotating_earth_(large).400.webp',
+					type: 'image/webp',
 					width: 400
 				},
 				{
-					src: 'Rotating_earth_(large).400.webp',
-					type: 'ìmage/webp',
+					src: 'Rotating_earth_(large).400.jpg',
+					type: 'image/jpeg',
 					width: 400
 				}
 			]
@@ -125,7 +125,7 @@ export const test_images: TestImage[] = [
 			src: 'SVG_logo.svg',
 			width: 100,
 			height: 100,
-			type: 'svg'
+			type: 'image/svg+xml'
 		},
 		expected_files: ['SVG_logo.svg']
 	}
@@ -175,7 +175,16 @@ describe('A nice webpack loader for images - with only webp output', () => {
 				target_formats: ['webp']
 			});
 
-			expect(test_data && test_data.image).toMatchObject(element.expected_default_image);
+			const expected =
+				element.expected_default_image.type === 'image/svg+xml'
+					? element.expected_default_image
+					: {
+							...element.expected_default_image,
+							type: 'image/webp',
+							src: element.expected_default_image.src.replace('.jpg', '.webp')
+					  };
+
+			expect(test_data && test_data.image).toMatchObject(expected);
 		});
 	});
 });
